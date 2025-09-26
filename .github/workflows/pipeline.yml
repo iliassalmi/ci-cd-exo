@@ -1,6 +1,5 @@
-cat > .github/workflows/pipeline.yml <<'YAML'
 name: quick-check
-"on":
+on:
   push:
     branches:
       - dev
@@ -10,6 +9,5 @@ jobs:
   hello:
     runs-on: [self-hosted, Linux, X64]
     steps:
-      - run: echo "Runner OK ✅"
-YAML
+      - run: echo "Runner OK"
 
