@@ -1,0 +1,45 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ dev, main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install deps
+        run: |
+          cd app
+          npm install
+      - name: Run tests
+        run: |
+          cd app
+          npm test
+
+  deploy:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible sshpass
+      - name: Deploy to DEV
+        if: github.ref == 'refs/heads/dev'
+        env:
+          ANSIBLE_PASSWORD: ${{ secrets.DEV_SSH_PASSWORD || 'devpassword' }}
+        run: |
+          export ANSIBLE_PASSWORD="${ANSIBLE_PASSWORD}"
+          ansible-playbook ansible/playbooks/deploy-dev.yml -i ansible/inventory/dev.ini --extra-vars "ansible_password=${ANSIBLE_PASSWORD}"
+      - name: Deploy to PROD
+        if: github.ref == 'refs/heads/main'
+        env:
+          ANSIBLE_PASSWORD: ${{ secrets.PROD_SSH_PASSWORD || 'prodpassword' }}
+        run: |
+          export ANSIBLE_PASSWORD="${ANSIBLE_PASSWORD}"
+          ansible-playbook ansible/playbooks/deploy-prod.yml -i ansible/inventory/prod.ini --extra-vars "ansible_password=${ANSIBLE_PASSWORD}"

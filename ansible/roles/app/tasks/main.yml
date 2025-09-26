@@ -1,0 +1,54 @@
+- name: Mettre à jour l'apt cache
+  apt:
+    update_cache: yes
+
+- name: Installer dépendances
+  apt:
+    name:
+      - git
+      - nodejs
+      - npm
+      - nginx
+    state: present
+
+- name: Créer répertoire app
+  file:
+    path: /var/www/html
+    state: directory
+    mode: "0755"
+
+- name: Cloner (ou mettre à jour) le dépôt applicatif
+  git:
+    repo: "{{ app_repo }}"
+    dest: "{{ app_dest }}"
+    version: "main"
+    force: yes
+  ignore_errors: yes
+
+- name: Installer les packages Node si package.json existe
+  stat:
+    path: "{{ app_dest }}/package.json"
+  register: pkg_json
+
+- name: npm install
+  npm:
+    path: "{{ app_dest }}"
+  when: pkg_json.stat.exists
+
+- name: Build de l’application si script build existe
+  shell: |
+    if [ -f package.json ] && jq -e '.scripts.build' package.json >/dev/null 2>&1; then
+      npm run build
+    else
+      echo "no build step"
+    fi
+  args:
+    chdir: "{{ app_dest }}"
+  ignore_errors: yes
+
+- name: Déployer page confirmation
+  template:
+    src: "index.html.j2"
+    dest: "/var/www/html/index.html"
+    mode: "0644"
+  notify: restart nginx

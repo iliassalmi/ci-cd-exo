@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <title>Déploiement réussi</title>
+  </head>
+  <body>
+    <h1>Déploiement sur {{ inventory_hostname }} OK ✅</h1>
+<p>Date : {{ (ansible_date_time.date ~ " " ~ ansible_date_time.time) if ansible_date_time is defined else lookup("pipe","date +%F\\ %T") }}</p>    
+  </body>
+</html>

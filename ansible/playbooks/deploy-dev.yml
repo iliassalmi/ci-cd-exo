@@ -1,0 +1,6 @@
+- hosts: dev
+  become: yes
+  vars:
+    ansible_become_method: sudo
+  roles:
+    - app

@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  serveur-dev:
+    image: rastasheep/ubuntu-sshd:18.04
+    container_name: serveur-dev
+    environment:
+      - ROOT_PASSWORD=devpassword
+    ports:
+      - "2222:22"
+
+  serveur-prod:
+    image: rastasheep/ubuntu-sshd:18.04
+    container_name: serveur-prod
+    environment:
+      - ROOT_PASSWORD=prodpassword
+    ports:
+      - "2200:22"
+
