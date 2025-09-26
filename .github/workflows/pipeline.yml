@@ -1,4 +1,4 @@
-name: quick-check
+name: CI/CD Pipeline
 on:
   push:
     branches:
@@ -6,8 +6,61 @@ on:
       - main
 
 jobs:
-  hello:
-    runs-on: [self-hosted, Linux, X64]
+  build-test:
+    runs-on: self-hosted
     steps:
-      - run: echo "Runner OK"
+      - uses: actions/checkout@v4
+      - name: Setup Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install deps
+        run: |
+          cd app
+          npm install
+      - name: Run tests
+        run: |
+          cd app
+          npm test
+
+  deploy:
+    needs: build-test
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure Docker is up and containers are running
+        run: |
+          docker --version
+          docker compose version || true
+          docker compose up -d
+          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+      - name: Wait for SSH port (dev=2222, main=2200)
+        run: |
+          sudo apt-get update && sudo apt-get install -y netcat-openbsd
+          wait_port () { for i in {1..30}; do nc -z localhost "$1" && echo "Port $1 open" && return 0; echo "Waiting $1... ($i/30)"; sleep 2; done; echo "Port $1 not open"; exit 1; }
+          if [ "${GITHUB_REF##*/}" = "dev" ]; then wait_port 2222; fi
+          if [ "${GITHUB_REF##*/}" = "main" ]; then wait_port 2200; fi
+
+      - name: Install Ansible & sshpass
+        run: sudo apt-get install -y ansible sshpass
+
+      - name: Deploy to DEV
+        if: github.ref == 'refs/heads/dev'
+        env:
+          ANSIBLE_PASSWORD: ${{ secrets.DEV_SSH_PASSWORD || 'devpassword' }}
+        run: |
+          ansible-playbook ansible/playbooks/deploy-dev.yml \
+            -i ansible/inventory/dev.ini \
+            --extra-vars "ansible_password=${ANSIBLE_PASSWORD}"
+
+      - name: Deploy to PROD
+        if: github.ref == 'refs/heads/main'
+        env:
+          ANSIBLE_PASSWORD: ${{ secrets.PROD_SSH_PASSWORD || 'prodpassword' }}
+        run: |
+          ansible-playbook ansible/playbooks/deploy-prod.yml \
+            -i ansible/inventory/prod.ini \
+            --extra-vars "ansible_password=${ANSIBLE_PASSWORD}"
 
