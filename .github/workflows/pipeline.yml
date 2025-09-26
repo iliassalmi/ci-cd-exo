@@ -29,6 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # (1) S'assure que les conteneurs sont lancés
       - name: Ensure Docker is up and containers are running
         run: |
           docker --version
@@ -36,6 +37,7 @@ jobs:
           docker compose up -d
           docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
+      # (2) Attend que le bon port SSH soit prêt
       - name: Wait for SSH port (dev=2222, main=2200)
         run: |
           sudo apt-get update && sudo apt-get install -y netcat-openbsd
@@ -43,9 +45,11 @@ jobs:
           if [ "${GITHUB_REF##*/}" = "dev" ]; then wait_port 2222; fi
           if [ "${GITHUB_REF##*/}" = "main" ]; then wait_port 2200; fi
 
+      # (3) Installe Ansible
       - name: Install Ansible & sshpass
         run: sudo apt-get install -y ansible sshpass
 
+      # (4) Déploiements
       - name: Deploy to DEV
         if: github.ref == 'refs/heads/dev'
         env:
